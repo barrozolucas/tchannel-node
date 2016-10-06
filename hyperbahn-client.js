@@ -594,6 +594,33 @@ function tagDiscover(opts, cb) {
     }
 };
 
+// ## serviceNames
+// Retrieve all registered service names.
+HyperbahnClient.prototype.serviceNames =
+function serviceNames(cb) {
+    var self = this;
+
+    assert(self.tchannel.hostPort,
+        'must call tchannel.listen() before serviceNames()');
+
+    if (self._destroyed) {
+        self.emit('error', AlreadyDestroyed({
+            method: 'serviceNames'
+        }));
+        return;
+    }
+
+    var req = self.newRequest();
+    self.tchannelJSON.send(req, 'serviceNames', null, null, serviceNamesInternalCb);
+
+    function serviceNamesInternalCb(err, res) {
+        if (err) {
+            cb(err, null);
+            return;
+        }
+        cb(null, res.body);
+    }
+};
 // ## destroy
 HyperbahnClient.prototype.destroy = function destroy() {
     var self = this;
