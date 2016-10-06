@@ -114,6 +114,7 @@ function HyperbahnClient(options) {
     }
 
     self.serviceName = options.serviceName;
+    self.serviceTags = options.serviceTags;
     self.callerName = options.callerName || options.serviceName;
     self.tchannel = options.tchannel;
     self.reportTracing = 'reportTracing' in options ?
@@ -307,7 +308,8 @@ function sendRequest(opts, endpoint, cb) {
     self.tchannelJSON.send(req, endpoint, null, {
         services: [{
             cost: 0,
-            serviceName: self.serviceName
+            serviceName: self.serviceName,
+	    serviceTags: self.serviceTags,
         }]
     }, cb);
 };
