@@ -529,6 +529,71 @@ function discover(opts, cb) {
     }
 };
 
+// ## tag discover
+// Make a tag discover query to Hyperbahn to find peers that match the service tags.
+HyperbahnClient.prototype.tagDiscover =
+function tagDiscover(opts, cb) {
+    var self = this;
+
+    opts = opts || {};
+
+    assert(self.tchannel.hostPort,
+        'must call tchannel.listen() before discover()');
+
+    if (self._destroyed) {
+        self.emit('error', AlreadyDestroyed({
+            method: 'tagDiscover'
+        }));
+        return;
+    }
+
+    var req = self.newRequest(opts);
+    var serviceTags = opts.serviceTags || self.serviceTags;
+
+    self.tchannelThrift.send(req, 'Hyperbahn::tagDiscover', null, {
+        query: {
+            serviceTags: serviceTags
+        }
+    }, discoverInternalCb);
+
+    function discoverInternalCb(err, res) {
+        if (err) {
+            self.logger.error('call to tag discovery API failed', {
+                error: err,
+                serviceTags: serviceTags,
+                response: res
+            });
+            cb(err, null);
+            return;
+        }
+
+        var hosts;
+
+        if (res.ok === false) {
+            err = res.body;
+
+            // If the response from Hyperbahn is that there are no peers
+            // available, we callback with the error but also an empty host
+            // list. Callers can then use the value of "hosts" to determine the
+            // result without having to parse the error.
+            if (res.typeName === 'noPeersAvailable') {
+                hosts = [];
+            }
+
+            cb(err, hosts);
+            return;
+        }
+
+        hosts = [];
+        for (var i = 0; i < res.body.peers.length; i++) {
+            hosts.push(convertHost(res.body.peers[i]));
+        }
+
+        cb(null, hosts);
+        return;
+    }
+};
+
 // ## destroy
 HyperbahnClient.prototype.destroy = function destroy() {
     var self = this;
