@@ -65,6 +65,7 @@ var DEFAULT_ERROR_RETRY_TIMES = [
     10000 // Max out at 10 seconds
 ];
 var DEFAULT_TIMEOUT = 500;
+var DEFAULT_REQ_DATA_CHUNK_SIZE = 100;
 
 var thriftSource = fs.readFileSync(
     path.join(__dirname, 'hyperbahn.thrift'),
@@ -304,6 +305,10 @@ HyperbahnClient.prototype.sendRequest =
 function sendRequest(opts, endpoint, cb) {
     var self = this;
 
+    if (self.serviceTags.length) {
+	return self.sendBatchRequests(opts, endpoint, cb);
+    }
+
     var req = self.newRequest();
     self.tchannelJSON.send(req, endpoint, null, {
         services: [{
@@ -313,6 +318,43 @@ function sendRequest(opts, endpoint, cb) {
         }]
     }, cb);
 };
+
+HyperbahnClient.prototype.sendBatchRequests =
+function sendBatchRequests(opts, endpoint, cb) {
+    var self = this;
+    var finished = false;
+    var chunk = DEFAULT_REQ_DATA_CHUNK_SIZE;
+    var counter = Math.ceil(self.serviceTags.length / chunk);
+
+    var i, j;
+    for (i = 0, j = self.serviceTags.length; i < j; i += chunk) {
+        var req = self.newRequest();
+        self.tchannelJSON.send(req, endpoint, null, {
+            services: [{
+                cost: 0,
+                serviceName: self.serviceName,
+                serviceTags: self.serviceTags.slice(i, i + chunk),
+            }]
+        }, sendRequestInternalCb);
+    }
+
+    function sendRequestInternalCb (err, result) {
+        if (--counter <= 0 || err) {
+            finish(err, result);
+        }
+    }
+
+    function finish (err, result) {
+        if (finished) {
+            return;
+        }
+
+        finished = true;
+
+        cb(err, result);
+    }
+};
+
 
 // ## advertise
 // Advertise with Hyperbahn. If called with a callback, the callback will not be
