@@ -626,9 +626,16 @@ function tagDiscover(opts, cb) {
             return;
         }
 
-        hosts = [];
-        for (var i = 0; i < res.body.peers.length; i++) {
-            hosts.push(convertHost(res.body.peers[i]));
+        hosts = {}; 
+        var keys = Object.keys(res.body.peers);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var peers = res.body.peers[key];
+            hosts[key] = [];
+
+            for (var j = 0; j < peers.length; j++) {
+                hosts[key].push(convertHost(peers[j]));
+            }
         }
 
         cb(null, hosts);
